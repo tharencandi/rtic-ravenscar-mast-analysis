@@ -1,0 +1,6 @@
+[submodule "rtic-realtime-evaluation"]
+	path = rtic-realtime-evaluation
+	url = https://github.com/tharencandi/rtic-realtime-evaluation
+[submodule "ada-realtime-evaluation-Private"]
+	path = ada-realtime-evaluation-Private
+	url = https://github.com/tharencandi/ada-realtime-evaluation-Private
