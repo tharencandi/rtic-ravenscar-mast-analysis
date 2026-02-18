@@ -1,6 +1,18 @@
 [submodule "rtic-realtime-evaluation"]
 	path = rtic-realtime-evaluation
-	url = https://github.com/tharencandi/rtic-realtime-evaluation
+	url = git@github.com:tharencandi/rtic-realtime-evaluation.git
 [submodule "ada-realtime-evaluation-Private"]
 	path = ada-realtime-evaluation-Private
 	url = https://github.com/tharencandi/ada-realtime-evaluation-Private
+[submodule "ada-overhead-tests"]
+	path = ada-overhead-tests
+	url = https://github.com/tharencandi/ada-overhead-tests
+[submodule "ritc-overhead-tests"]
+	path = ritc-overhead-tests
+	url = git@github.com:tharencandi/ritc-overhead-tests.git
+[submodule "mast-comparative-experiments"]
+	path = mast-comparative-experiments
+	url = git@github.com:tharencandi/mast-comparative-experiments.git
+[submodule "ada-realtime-evaluation"]
+	path = ada-realtime-evaluation
+	url = git@github.com:tharencandi/ada-realtime-evaluation.git
