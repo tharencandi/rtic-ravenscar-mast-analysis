@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Tharen Emmanuel Candi" />
+  <title>Behaviour and Performance Comparison between Ada Ravenscar and Rust RTIC for Hard Real-Time Systems</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for citations */
+    div.csl-bib-body { }
+    div.csl-entry {
+      clear: both;
+    }
+    .hanging-indent div.csl-entry {
+      margin-left:2em;
+      text-indent:-2em;
+    }
+    div.csl-left-margin {
+      min-width:2em;
+      float:left;
+    }
+    div.csl-right-inline {
+      margin-left:2em;
+      padding-left:1em;
+    }
+    div.csl-indent {
+      margin-left: 2em;
+    }  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Behaviour and Performance Comparison between Ada
+Ravenscar and Rust RTIC for Hard Real-Time Systems</h1>
+<p class="author">Tharen Emmanuel Candi</p>
+<p class="date">19th of March, 2026</p>
+</header>
+<h1 id="introduction">Introduction</h1>
+<p>Real-time systems are distinct from general-purpose computing in that
+their correctness depends not only on the logical result of computation
+but also on the time at which these results are produced <span
+class="citation" data-cites="ermedahl-engblom">(Engblom et al.
+2001)</span>. The criticality of a real-time system determines how
+problematic a missed deadline can be <span class="citation"
+data-cites="ermedahl-engblom">(Engblom et al. 2001)</span>. A primary
+architectural requirement for such systems on this spectrum is
+predictability <span class="citation"
+data-cites="puschner-burns-review">(Puschner and Burns 2000)</span>; the
+feasibility of soundly establishing temporal behaviour, ranging from
+full determinism to bounded uncertainty.<br />
+ <br />
+To provide these guarantees, system designers rely on schedulability
+analysis, a methodology that determines whether a given set of tasks can
+meet their deadlines when executed on a specific platform. This analysis
+requires precise upper bounds on the execution time of code, known as
+Worst-Case Execution Time (WCET) <span class="citation"
+data-cites="wilhelm-wcet">(Wilhelm et al. 2008)</span>. This study
+provides a comparative evaluation of the real-time capabilities of Ada
+Ravenscar and Rust RTIC. Using Generic Environment Executive (GEE) as a
+reference real-time application case study <span class="citation"
+data-cites="giovanni-report">(Hu and Gobbo 2020)</span>, both
+implementations are evaluated on an STM32F429I-Discovery board (ARM
+Cortex-M4).<br />
+ <br />
+This paper introduces the Ada Ravenscar and Rust RTIC frameworks,
+describes the GEE application, examines the RTIC implementation with
+emphasis on runtime abstractions and timing implications, analyses task
+definitions and synchronisation primitives, and uses the modelling and
+Analysis Suite for Real Time applications (MAST)<span class="citation"
+data-cites="mast-tool">(Harbour et al. 2001)</span> to compare the
+differences in schedulability.</p>
+<h1 id="the-ada-ravenscar-and-rust-rtic-frameworks">The Ada Ravenscar
+and Rust RTIC Frameworks</h1>
+<h2 id="ada-and-the-ravenscar-profile">Ada and the Ravenscar
+Profile</h2>
+<p>The Ada programming language has long been used for high-integrity
+systems due to the available deterministic constructs, and built-in
+support for concurrency <span class="citation"
+data-cites="ermedahl-engblom">(Engblom et al. 2001)</span> <span
+class="citation" data-cites="ravenscar-guide">(Burns, Dobbing, and
+Vardanega 2017)</span>. The full Ada tasking model includes
+non-deterministic features that render static timing analysis
+infeasible. To address this, the Ravenscar Profile was defined as a
+restricted subset of Ada tasking <span class="citation"
+data-cites="ravenscar-guide">(Burns, Dobbing, and Vardanega
+2017)</span>.<br />
+ <br />
+Ravenscar enforces a static existence model, and a deterministic
+execution model with predefined, recurrent tasks and resources,
+prohibiting dynamic creation and abort statements to ease system
+analysability <span class="citation"
+data-cites="ravenscar-guide">(Burns, Dobbing, and Vardanega
+2017)</span>. The profile grants both <strong>exclusion
+synchronisation</strong> (mutual exclusion) and <strong>avoidance
+synchronisation</strong> (condition-based waiting) via protected entries
+and suspension objects. Concurrency control relies on Protected Objects
+(POs), which use the Immediate Priority Ceiling Protocol (IPCP) <span
+class="citation" data-cites="ravenscar-guide">(Burns, Dobbing, and
+Vardanega 2017)</span>, to ensure mutually exclusive access, prevent
+deadlocks and bound priority inversion, enabling rigorous Response Time
+Analysis (RTA) <span class="citation"
+data-cites="ravenscar-guide">(Burns, Dobbing, and Vardanega
+2017)</span>.<br />
+ <br />
+The system employs preemptive fixed-priority scheduling (FPS), managed
+by a software kernel runtime that also handles context switching and
+time management. Temporal predictability is guaranteed by time-based
+semantics (like delays and deadline monitoring) with a periodic SysTick
+interrupt handler. The SysTick handler runs at the highest hardware
+priority, so that the scheduler bounds release jitter and accurately
+tracks time.<span class="citation"
+data-cites="vardanega-semantics">(Vardanega, Zamorano, and Puente
+2005)</span>.</p>
+<h2 id="rust-and-the-rtic-framework">Rust and the RTIC Framework</h2>
+<p>Rust is increasingly discussed for embedded systems due to its
+compile-time memory safety and modern tooling. The Real-Time Interrupt
+Driven Concurrency (RTIC) framework, formerly RTFM, is a DSL built on
+top of Rust that maps tasks to hardware interrupt vectors on ARM
+Cortex-M microcontrollers. Concurrency control uses the Stack Resource
+Policy (SRP), a Stack-Based Immediate Priority Ceiling Protocol
+(SB-IPCP) variant, to guarantee deadlock-free execution <span
+class="citation"
+data-cites="baker-srp hardware-support rtfm-step1">(Baker 1991;
+Lindgren, Dzialo, and Lunnikivi 2023; Eriksson et al. 2013)</span>.</p>
+<p>RTIC defines two task classes that safely share a single stack:</p>
+<ul>
+<li><p><strong>Hardware tasks</strong>: statically bound to specific
+peripheral interrupt vectors and scheduled directly by the Nested
+Vectored Interrupt Controller (NVIC).</p></li>
+<li><p><strong>Software tasks</strong>: async functions dispatched by
+priority‑specific interrupt executors that can yield at explicit await
+points. There are no limits to the number of software tasks; however,
+priority levels are bounded by the free vectors available in the
+NVIC.</p></li>
+</ul>
+<p>To execute these tasks, scheduling is delegated to the hardware NVIC.
+Tail-chaining is a hardware optimisation implemented in Cortex-M
+processors such that when an exception enters a pending state while the
+processor is handling another exception of the same or higher priority,
+the pending exception is subsequently handled without un-stacking and
+re-stacking core registers <span class="citation"
+data-cites="yiu2011definitive">(Yiu 2011)</span>. This reduces
+context-switch latency between successive interrupts <span
+class="citation" data-cites="yiu2011definitive">(Yiu 2011)</span>.
+Because RTIC directly maps task priorities to hardware interrupt
+priorities, the NVIC automatically tail-chains into the next
+highest-priority pending task, natively enforcing the strict priority
+ordering required by the SRP <span class="citation"
+data-cites="hardware-support">(Lindgren, Dzialo, and Lunnikivi
+2023)</span>.<br />
+ <br />
+Shared resources are protected by SRP critical sections. Each resource
+has a compile‑time-computed ceiling, and locking elevates the task’s
+effective dynamic priority via the <code>BASEPRI</code> register, which
+temporarily masks lower-priority interrupts. Furthermore, RTIC is deeply
+integrated with Rust’s async/await model; tasks are viewed as the
+synchronous sections between await points, thus, no shared resources are
+able to be held at points of suspension, which is enforced by the
+compiler <span class="citation" data-cites="rtic-book">(RTIC Community
+2024)</span>. RTIC minimises memory usage by relying on a single stack,
+enforcing a strict LIFO (Last-In, First-Out) execution order where
+higher-priority tasks always complete before lower-priority tasks can
+resume.</p>
+<h1 id="case-study-gee-application">Case Study: GEE Application</h1>
+<h2 id="application-definition">Application Definition</h2>
+<p>The original GEE application definition from Hu and Gobbo <span
+class="citation" data-cites="giovanni-report">(Hu and Gobbo 2020)</span>
+was used as the baseline and modelled with the MAST Suite <span
+class="citation" data-cites="mast-tool">(Harbour et al.
+2001)</span>.<br />
+ <br />
+A <strong>transaction</strong>, as defined by MAST, models a set of
+interrelated tasks triggered by a single external event, such as a
+periodic timer or a hardware interrupt <span class="citation"
+data-cites="mast-tool giovanni-report">(Harbour et al. 2001; Hu and
+Gobbo 2020)</span>. By grouping tasks into a transaction represented as
+a graph of event handlers, the model can accurately capture the causal
+flow of events, precedence constraints, relative time offsets, and
+global end-to-end deadlines throughout the system <span class="citation"
+data-cites="mast-tool giovanni-report">(Harbour et al. 2001; Hu and
+Gobbo 2020)</span>.<br />
+ <br />
+The modelled GEE application is composed of the following four
+transactions:</p>
+<ul>
+<li><p><strong>Regular Producer Transaction</strong>: Activated
+periodically every 1,000,ms, with a 500,ms hard global deadline relative
+to its activation.</p></li>
+<li><p><strong>On-Call Producer Transaction</strong>: Activated by a
+bounded aperiodic event with a minimum interarrival time of 3,000,ms and
+an 800,ms hard global deadline.</p></li>
+<li><p><strong>Activation Log Reader Transaction</strong>: Released by
+the periodic process to perform checks on recorded interrupt entries,
+with a minimum interarrival time of 3,000,ms and a 1,000,ms hard global
+deadline.</p></li>
+<li><p><strong>External Event Server Transaction</strong>: Serves as the
+software-level interrupt handler, activated by an external event with a
+minimum interarrival time of 5,000,ms and a 100,ms hard global
+deadline.</p></li>
+</ul>
+<h2 id="ada-ravenscar-implementation">Ada Ravenscar Implementation</h2>
+<p>The original application uses Protected Objects to manage all shared
+state and synchronisation. Each PO is assigned a priority ceiling (e.g.,
+Request_Buffer with ceiling 9, activation_log with ceiling 13). A.
+Burns, B. Dobbing, and T. Vardanega offer a more detailed implementation
+description <span class="citation" data-cites="ravenscar-guide">(Burns,
+Dobbing, and Vardanega 2017)</span>.</p>
+<h2 id="rtic-implementation">RTIC Implementation</h2>
+<p>We ported the GEE application to RTIC with the objective of
+preserving the original task set, activation patterns, and
+shared-resource interactions whilst expressing them using RTIC’s task
+model and synchronisation primitives. The implementation follows RTIC’s
+standard design pattern as defined in the official documentation <span
+class="citation" data-cites="rtic-book">(RTIC Community 2024)</span>,
+combining hardware tasks for interrupt-bound activities and asynchronous
+software tasks for periodic and event-driven behaviour.</p>
+<h3 id="task-mapping">Task Mapping</h3>
+<p>The exact static priority values from Hu and Gobbo were preserved
+<span class="citation" data-cites="giovanni-report">(Hu and Gobbo
+2020)</span>. These values were originally assigned according to
+Deadline Monotonic (DM) scheduling, an optimal fixed-priority algorithm
+where tasks with shorter relative deadlines receive higher priorities
+<span class="citation" data-cites="giovanni-report">(Hu and Gobbo
+2020)</span>.</p>
+<h4 id="regular-producer">Regular Producer</h4>
+<p>Implemented as a software task with priority 7, released by the
+monotonic timer via Mono::delay_until(next_time).await; it executes a
+fixed workload and conditionally triggers sporadic activity. Its shared
+resource is a read-only copy of the activation time.</p>
+<h4 id="on-call-producer">On-Call Producer</h4>
+<p>A sporadic software task with priority 5 that remains suspended until
+data is available; activations are triggered by the Regular Producer.
+Its shared resource is a read-only copy of the activation time.</p>
+<h4 id="external-event-server">External Event Server</h4>
+<p>A sporadic software task with priority 11 that awaits on a signal
+from the hardware task ISR <em>EXTI0 (#[task(binds = EXTI0)])</em>. Its
+shared resources include the read-only activation time, as well as the
+SRP-based activation log.</p>
+<h4 id="activation-log-reader">Activation Log Reader</h4>
+<p>A sporadic software task with priority 3, that awaits on a signal
+from the regular producer. Its shared resources include the read-only
+activation time, as well as the SRP-based activation log.</p>
+<h2 id="resource-and-synchronisation-mapping">Resource and
+Synchronisation Mapping</h2>
+<p>The Ravenscar Projected Objects and Suspension Objects were replaced
+using RTIC’s synchronisation primitives, maintaining equivalent
+interaction patterns:</p>
+<ul>
+<li><p><strong>Request Buffer</strong>: The PO <em>Request_Buffer</em>
+acts as the interface between the Regular Producer and the On-Call
+Producer, providing a suspending entry (Extract) and a non-blocking
+deposit (Deposit). It is replaced by a statically bounded
+<em>rtic::sync::channel</em>. Since the two tasks share a strict
+precedence relation within the same transaction, the buffer will in
+practice never hold more than one unread request at a time <span
+class="citation" data-cites="giovanni-report">(Hu and Gobbo
+2020)</span>. It is sufficient to set the channel size equivalently to
+the buffer size of 5 as specified in the original GEE application <span
+class="citation" data-cites="ravenscar-guide">(Burns, Dobbing, and
+Vardanega 2017)</span>. Non-blocking deposit is achieved through the
+<em>try_send</em> method (reproducing the boolean return on failure),
+and the suspended entry is achieved through
+<em>receiver.recv().await</em> replicating the barrier that waits on
+empty). Because the channel endpoints are owned by specific tasks, it
+avoids the need for an SRP priority-ceiling.</p></li>
+<li><p><strong>Event Queue and local suspension object</strong>: The
+protected object <em>Event_Queue</em> and the local suspension object
+are replaced by <em>rtic::Signal</em> instances. The
+<em>Event_Queue</em>, previously a Protected Object with a ceiling
+priority, is mapped to a signal with "latest-only" semantics; new events
+overwrite previous values, effectively coalescing interrupt bursts. The
+EXTI0 interrupt simply writes to the signal and the External Event
+Server awaits it, ensuring the ISR remains minimal and processing occurs
+at the <em>task’s</em> priority. Similarly, the log reader uses a signal
+as a simple asynchronous notification flag.</p></li>
+<li><p><strong>Activation Log</strong>: The protected object
+<em>Activation_Log</em> is replaced by a shared RTIC resource wrapping a
+custom <em>ActivationLog</em> struct. This struct encapsulates the log
+state, maintaining a modulo-100 counter and the last event timestamp.
+Access is managed via mutual exclusion under SRP. The resource’s
+priority ceiling is automatically derived at compile time based on the
+tasks sharing it.</p></li>
+</ul>
+<h2 id="initial-release-and-timing">Initial Release and Timing</h2>
+<p>All tasks are synchronised to a common activation time computed
+during initialisation. RTIC’s monotonic timer (SysTick-backed for
+consistency with the Ada Ravenscar runtime) is started in <em>init</em>,
+and the calculated start timestamp is distributed to all tasks as a
+shared resource. Each task performs an asynchronous delay
+(<em>delay_until</em>) to this common activation instant before entering
+its periodic or sporadic execution loop. This replicates the “common
+start” assumption used in the Ada version and ensures comparable phasing
+between implementations by establishing a common epoch, which also helps
+to enforce precedence relations across tasks <span class="citation"
+data-cites="ravenscar-guide">(Burns, Dobbing, and Vardanega
+2017)</span>.<br />
+ <br />
+A common activation instant causes the system’s critical instant <span
+class="citation"
+data-cites="vardanega-semantics giovanni-report">(Vardanega, Zamorano,
+and Puente 2005; Hu and Gobbo 2020)</span>. By forcing the periodic
+<em>Regular_Producer</em> and the simulated <em>Force_Interrupt</em> to
+release simultaneously, maximum initial contention is achieved, exposing
+lower-priority tasks to their theoretical maximum preemption
+interference <span class="citation"
+data-cites="vardanega-semantics">(Vardanega, Zamorano, and Puente
+2005)</span>, thereby ensuring worst-case response times.<span
+class="citation" data-cites="giovanni-report">(Hu and Gobbo
+2020)</span>.</p>
+<h1 id="comparisons-of-runtime-semantics">Comparisons of Runtime
+Semantics</h1>
+<h2 id="ipcp-versus-srp">IPCP versus SRP</h2>
+<p>Ravenscar mandates IPCP via the GNAT runtime (<em>System.BB</em>),
+where explicit <em>PO_Enter</em>/<em>Exit</em> calls dynamically raise
+the task’s active priority to the object’s ceiling. Conversely, RTIC
+implements SRP directly through hardware manipulation of the Cortex-M
+<em>BASEPRI</em> register. They are equivalent in preventing deadlock
+and bounding priority inversion, differing in implementation. RTIC’s
+hardware-backed approach reduces overhead of the management of shared
+resources to single instructions, effectively eliminating the software
+abstraction penalties incurred by the Ada runtime.</p>
+<h2 id="resource-sharing-and-blocking">Resource Sharing and
+Blocking</h2>
+<p>Whilst Ada enforces strictly priority-limited blocking via IPCP, RTIC
+introduces a secondary, distinct blocking term; <em>Non-Preemptive
+Blocking</em>, <span
+class="math inline"><em>B</em><sub><em>n</em><em>p</em></sub></span>,
+which arises from the use of global interrupt masking (PRIMASK) for
+critical sections within the source code. This mechanism is fundamental
+to the safety of RTIC’s core abstractions, including Channels, Signals,
+Timer Queues (used by <em>delay_until</em>), and Waker registrations.
+This enables safe, atomic access to shared state without mutexes,
+however, it inevitably creates short intervals where all interrupts are
+disabled, introducing release jitter for all tasks, including the
+SysTick monotonic Timer. Although the framework’s source code claims
+these critical sections are insignificantly small <span class="citation"
+data-cites="rtic-source">(RTIC Community, n.d.)</span>, their cumulative
+impact cannot be ignored in rigorous schedulability analysis.</p>
+<h2 id="system-timers-and-scheduling-overhead">System Timers and
+Scheduling Overhead</h2>
+<p>The RTIC implementation utilises a <em>SysTick</em>-backed monotonic
+timer. This configuration forces RTIC into a periodic interrupt model,
+negating the efficiency of its native tickless architecture <span
+class="citation" data-cites="rtic-book">(RTIC Community 2024)</span> and
+representing a worst-case performance scenario. While the Ada runtime
+executes a constant-time <span class="math inline"><em>O</em>(1)</span>
+check on the delay queue, the RTIC implementation employs a linked-list
+<em>TimerQueue</em> that requires traversal, resulting in <span
+class="math inline"><em>O</em>(<em>N</em>)</span> complexity for <span
+class="math inline"><em>N</em></span> active timers. The documentation
+states that compared to the SysTick offered, the RP2040 is a
+<em>"’proper’ implementation with support for waiting for long periods
+without interrupts"</em> <span class="citation"
+data-cites="rtic-book">(RTIC Community 2024)</span>.</p>
+<h2 id="mitigation-strategy-minimising-global-masking">Mitigation
+Strategy: Minimising Global Masking</h2>
+<p>The reliance of <em>rtic::sync</em> on global critical sections
+introduces non-preemptive blocking that complicates hard real-time
+analysis. An approach to mitigate this would be to utilise an
+alternative architectural pattern that avoids the <em>async/await</em>
+paradigm in favour of explicit run-to-completion tasks.</p>
+<p>In this model, the "wait" (avoidance synchronisation) provided by
+channels is replaced by a "spawn" mechanic. A producer task locks a
+<em>shared</em> buffer (protected via SRP/BASEPRI), enqueues data, and
+explicitly spawns the consumer task. The consumer then preempts, locks
+the buffer to retrieve the data, processes it, and exits.</p>
+<p>This approach will significantly reduce non-preemptive blocking
+(<span
+class="math inline"><em>B</em><sub><em>n</em><em>p</em></sub></span>),
+simplify modelling by limiting global masking strictly to the monotonic
+timer’s operations and aligning the system’s behaviour closer to the
+deterministic ideal of Ada Ravenscar.</p>
+<h2 id="coupled-vs.-decoupled-synchronisation-models">Coupled vs.
+Decoupled Synchronisation Models</h2>
+<p>This case study highlights a fundamental divergence in
+synchronisation semantics, which is crucial to understand for the
+modelling of predictable real-time systems.<br />
+ <br />
+Ada Ravenscar employs Protected Objects as a unified abstraction for
+mutual exclusion, task synchronisation, and priority control <span
+class="citation" data-cites="ravenscar-guide">(Burns, Dobbing, and
+Vardanega 2017)</span>. By coupling guard checks and blocking logic for
+not only shared resources but all message passing within a single
+construct, restricted to one entry with no queuing, the profile ensures
+clear, deterministic semantics for blocking times <span class="citation"
+data-cites="vardanega-semantics">(Vardanega, Zamorano, and Puente
+2005)</span>.<br />
+ <br />
+Conversely, RTIC treats mutual exclusion and synchronisation as
+orthogonal concerns. Shared resources are strictly protected by
+SRP-based critical sections, while suspension is handled via distinct
+asynchronous primitives <span class="citation"
+data-cites="rtic-book">(RTIC Community 2024)</span>. Decoupling
+synchronisation from data protection seems to be a by-product of the
+integration with Rust’s async model. Consequently, waiting becomes an
+explicit orchestration step distinct from resource access, rather than
+being an intrinsic, atomic property of the resource itself.</p>
+<h1 id="measurement">Measurement</h1>
+<p>The two ecosystems offer different capabilities and challenges for
+measuring performance and verifying correctness.</p>
+<h2 id="execution-time">Execution Time</h2>
+<p>The Ada environment provides a built-in Execution Time clock (ETC)
+that measures CPU time only when a specific task is actively running.
+This is useful for accurate WCET analysis. RTIC lacks a direct
+equivalent.<br />
+ <br />
+The Data Watchpoint and Trace (DWT) cycle counter was used for
+execution‑time measurements in RTIC, including in‑application
+<em>task_metrics.rs</em> instrumentation and GDB breakpoint-based
+scripts to profile RTIC internals and critical sections. The GDB method
+is more error‑prone (breakpoint placement, runtime interference) and
+requires cautious interpretation <span class="citation"
+data-cites="arm-dwt-count">(Arm Limited 2026)</span>.</p>
+<h2 id="deadline-miss-detection">Deadline Miss Detection</h2>
+<p>The Ada runtime includes a Timing Event facility that invokes a
+handler directly from the clock interrupt when a deadline is missed,
+providing built-in overrun detection. In the RTIC implementation,
+<em>release_time</em> is tracked to calculate the relative deadline and
+the job end is checked to log a miss via <em>defmt</em>:</p>
+<pre><code>if Mono::now() &gt; deadline {
+    defmt::warn!(&quot;On Call Producer missed its deadline!&quot;);
+}</code></pre>
+<h2 id="wcet-measurements">WCET Measurements</h2>
+<h3 id="synchronous-application-level">Synchronous Application
+Level</h3>
+<p>Task_metrics.rs wraps all synchronous, non-preempted code in
+<em>start_subtracking()</em> and <em>end_subtracking()</em>, logging the
+start-to-end cycle count from the DWT cycle timer using defmt
+semi-hosting.<br />
+ <br />
+System_overhead.rs records job start‑to‑end execution. System overhead
+is extracted by subtracting the cumulated <em>task_metrics</em>
+measurements from the job’s total execution time.</p>
+<h3 id="asynchronous-code-and-rtic-sync">Asynchronous code and
+rtic-sync</h3>
+<p>In the context of RTIC and Rust’s ‘async‘/‘await‘ model, it is
+important to carefully consider WCET. For asynchronous operations like
+<em>channel.recv().await</em> or <em>signal.wait().await</em>‘, WCET is
+the total CPU cycles used to manage the state machine during the
+wait.<br />
+ <br />
+We rely on <em>measurement‑based analysis</em>; this can
+under-approximate the true WCET unless worst‑case hardware conditions
+are exercised. Key synchronous phases to measure are submission/polling
+(registering a ‘Waker‘, returning ‘Poll::Pending‘) and resumption
+(executor re‑polling and returning ‘Poll::Ready‘).<br />
+ <br />
+The async executor operates on interrupts. Each priority level has a
+dedicated dispatcher that polls all async tasks at that level. The
+executor maintains atomic booleans for running, pending state, and the
+task’s future. The waker is a function pointer that sets pending to true
+and pends the interrupt.<br />
+ <br />
+Overhead that must be measured includes <code>waker.wake()</code>,
+<em>check_and_clear_pending()</em>, <em>future.poll()</em>.</p>
+<ul>
+<li><p><strong>Delay until</strong><br />
+Encompasses the duration required to instantiate a <em>Delay</em> future
+(see <em>timer_queue.rs</em> in <span class="citation"
+data-cites="rtic-source">(RTIC Community, n.d.)</span>), register a
+waiting waker in the linked list of the timer queue, and the intrinsic
+polling and scheduling overhead incurred during the future’s polling
+process.</p></li>
+<li><p><strong>Channel Recv</strong><br />
+Awaits a polling function that registers a waker via
+<em>self.0.receiver_waker.register(cx.waker())</em>. It then attempts to
+dequeue using <em>self.try_recv()</em>, which returns either
+<em>Poll::Ready</em> or <em>Poll::Pending</em>. The measurement includes
+the execution time of the registration and dequeue operations, plus a
+fixed 15-cycle overhead for function invocation and async
+polling.</p></li>
+<li><p><strong>Channel Try_Send</strong><br />
+Attempts to send a value on the channel without blocking, returning an
+error if the channel is full. This synchronous operation includes one or
+more <em>critical_section</em> regions. Breakpoints are used to measure
+both the total execution time and the time spent inside
+critical-section–protected code.</p></li>
+<li><p><strong>Signal wait</strong><br />
+Waits for a new value and then reads it. If a value is already pending,
+the function returns immediately. Upon reading, the value is evicted. As
+with <em>Channel Recv</em>, the WCET includes the cost of
+<em>self.parent.waker.register(ctx.waker())</em> and the execution of
+<em>self.take()</em>, which reads and evicts the value within a critical
+section, plus associated overhead.</p></li>
+<li><p><strong>Signal write</strong><br />
+Writes a value to the signal using <em>Store::Set(value)</em>, which
+additionally wakes the parent waker and replaces the stored value. The
+operation executes within a <em>critical_section</em>, and its execution
+time includes both the store update and waker notification.</p></li>
+</ul>
+<h3 id="system-overheads-and-latency">System Overheads and Latency</h3>
+<p>The Ada Ravenscar implementation was re‑evaluated using the same
+DWT‑based GDB profiling technique for the runtime traps specified in the
+original analysis.</p>
+<p>For the Ada Ravenscar runtime, the following runtime traps were
+measured:</p>
+<ul>
+<li><p><em>__gnat_irq_trap</em>: The wrapper in
+<em>System.BB.Board_Support</em> that handles interrupts before
+transferring control to the user-defined interrupt handler.</p></li>
+<li><p><em>__gnat_pend_sv_trap</em>: The PendSV handler responsible for
+context switching.</p></li>
+<li><p><em>__gnat_sys_tick_trap</em>: The system timer handler.</p></li>
+</ul>
+<p>There are no equivalent software routines in RTIC. Consequently, a
+new set of end-to-end latency tests was devised to benchmark RTIC system
+overhead. For consistency and direct comparison, the same end-to-end
+benchmarks were also applied to the Ada Ravenscar implementation.<br />
+ <br />
+The following end-to-end measurements were performed:</p>
+<ul>
+<li><p><strong>Interrupt Service Routine (ISR) Overhead</strong>:
+Measures the time from the start of the trigger of the interrupt to the
+ISR entry.</p></li>
+<li><p><strong>Context Switching and Dispatcher Latency</strong>: For
+Ada, an end-to-end <em>sporadic_switch</em> test is measured, tracking
+execution from a <em>set_true</em> operation in a producer task to the
+return from <em>suspend_until_true</em> in a consumer task (suspension
+object mechanism). For RTIC, both hardware dispatch via <em>spawn()</em>
+and software dispatch via <em>signal()</em> are measured to assess their
+respective overheads.</p></li>
+<li><p><strong>System Timer (SysTick) Overhead</strong>: Measures the
+execution time of the "on monotonic interrupt" handler within the RTIC
+<em>timer_queue</em>.</p></li>
+</ul>
+<h1 id="mast-schedulability-analysis">MAST Schedulability Analysis</h1>
+<p>Both the Ada independent‑task and offset‑based MAST models were
+reconstructed from Hu and Gobbo <span class="citation"
+data-cites="giovanni-report">(Hu and Gobbo 2020)</span>. While the Ada
+and RTIC models share the same processor and fixed-priority scheduling
+policy, they diverge significantly in their representation of runtime
+behaviour and shared resources.</p>
+<p>All MAST models were implemented as template files populated by a
+JSON dictionary of measured WCET values. The analysis was automated
+using Python scripts to generate model instances, execute schedulability
+tests, and compile reports. Following the baseline analysis, four
+systematic experiments were conducted to examine specific system
+features.</p>
+<h2 id="modelling-the-frameworks">Modelling the Frameworks</h2>
+<p>The Ada Ravenscar model maps directly to MAST primitives, using
+<em>Shared_Resource</em> objects to represent the request buffer,
+activation log, and event queue. Each resource is assigned a specific
+priority ceiling, enabling the analysis tool to apply the ICPP directly
+<span class="citation" data-cites="ravenscar-guide">(Burns, Dobbing, and
+Vardanega 2017)</span>.<br />
+ <br />
+Conversely, the RTIC model requires a composite approach to abstract its
+asynchronous runtime. Async primitives (channels, signals, and waker
+registration) are modelled as sequences of operations. To account for
+the priority inversion caused by RTIC’s reliance on global critical
+sections, operations invoking <em>rtic::sync</em> are explicitly
+modelled as locking a single <em>global_critical_section</em> resource
+with the highest system priority (which presumably could preempt the
+sys-ticker). Application-level shared state, such as the
+<em>activation_log</em>, retains its SRP/ICPP model. This constraint is
+necessary to capture the system-wide blocking inherent in the RTIC
+implementation.</p>
+<h2 id="experimental-design">Experimental Design</h2>
+<h3 id="experiment-i-workload-scaling">Experiment I: Workload
+Scaling</h3>
+<p><strong>Objective:</strong> Determine the sensitivity of the system
+models to increasing computational load.</p>
+<p><strong>Method:</strong> The computational workloads of the
+<em>Regular Producer</em>, <em>On-Call Producer</em>, and <em>Activation
+Log Reader</em> are systematically increased by a scaling constant <span
+class="math inline"><em>k</em></span>, with a step size of <span
+class="math inline">1</span>, up to <span
+class="math inline"><em>k</em> = 30</span>. Note that the empirical WCET
+values for the Whetstone benchmark differ between implementations due to
+the implementation of libm operations for sin, cosine, etc. To ensure a
+fair comparison in this experiment, the same base WCET values (derived
+from the Ada measurements) are applied to both models, eliminating
+discrepancy caused by arithmetic operations within the workload.</p>
+<h3 id="experiment-ii-maximum-sustainable-utilisation">Experiment II:
+Maximum Sustainable Utilisation</h3>
+<p><strong>Objective:</strong> Determine the maximum CPU utilisation
+achievable by each system before a deadline miss occurs.</p>
+<p><strong>Method:</strong> The procedure described in the reference
+study is applied to identify the Whetstone scaling factors that result
+in maximal CPU utilisation. In contrast to Experiment I, this experiment
+utilises the specific empirically recorded WCETs for each platform to
+evaluate the native performance limits of the Ada Ravenscar and Rust
+RTIC runtimes.</p>
+<h3 id="experiment-iii-scheduler-and-timer-scalability">Experiment III:
+Scheduler and Timer Scalability</h3>
+<p><strong>Objective:</strong> Evaluate the scalability of the scheduler
+and system timer under increasing concurrent task load.</p>
+<p><strong>Method:</strong> The task set is augmented by introducing
+additional synthetic periodic tasks that utilise the monotonic timer
+(<em>delay_until</em>) to wake and yield. The impact of the increased
+timer queue depth on the worst-case response time (WCRT) of the
+<em>Regular Producer</em> is measured to quantify the scheduling
+overhead.</p>
+<h1 id="results-and-discussion">Results and Discussion</h1>
+<h2 id="measured-runtime-overheads">Measured Runtime Overheads</h2>
+<p>The measured worst‑case execution times (WCET) for the runtime
+primitives serve as inputs to the MAST models. These values (Table <a
+href="#tab:rtic_async_wcet" data-reference-type="ref"
+data-reference="tab:rtic_async_wcet">1</a>) quantify the cost of the
+asynchronous primitives of RTIC’s. Notably, the internal critical
+sections (CS) are short, with the longest continuous blocking section
+being only 2.46<span
+class="math inline"><em>μ</em><em>s</em></span>(<em>channel_recv</em>).</p>
+<div id="tab:rtic_async_wcet">
+<table>
+<caption>Rust RTIC asynchronous primitive WCETs, and
+global-critical-sections.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><strong>Primitive</strong></th>
+<th colspan="2" style="text-align: center;"><strong>CS
+WCET</strong></th>
+<th colspan="2" style="text-align: center;"><strong>Total
+WCET</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><span>2-3</span> (lr)<span>4-5</span></td>
+<td style="text-align: right;"><strong>(cycles)</strong></td>
+<td style="text-align: right;"><strong>(s)</strong></td>
+<td style="text-align: right;"><strong>(cycles)</strong></td>
+<td style="text-align: right;"><strong>(s)</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><em>delay_until</em></td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.00E+00</td>
+<td style="text-align: right;">150</td>
+<td style="text-align: right;">5.56E-08</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><em>signal_take</em></td>
+<td style="text-align: right;">25</td>
+<td style="text-align: right;">1.39E-07</td>
+<td style="text-align: right;">25</td>
+<td style="text-align: right;">1.39E-07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><em>try_recv</em></td>
+<td style="text-align: right;">361</td>
+<td style="text-align: right;">2.01E-06</td>
+<td style="text-align: right;">4479</td>
+<td style="text-align: right;">2.45E-06</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><em>waker_register</em></td>
+<td style="text-align: right;">82</td>
+<td style="text-align: right;">4.56E-07</td>
+<td style="text-align: right;">1526</td>
+<td style="text-align: right;">6.56E-07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><em>channel_recv</em></td>
+<td style="text-align: right;">443</td>
+<td style="text-align: right;">2.47E-06</td>
+<td style="text-align: right;">6005</td>
+<td style="text-align: right;">3.11E-06</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><em>signal_wait</em></td>
+<td style="text-align: right;">107</td>
+<td style="text-align: right;">5.95E-07</td>
+<td style="text-align: right;">1551</td>
+<td style="text-align: right;">7.95E-07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><em>channel_try_send</em></td>
+<td style="text-align: right;">264</td>
+<td style="text-align: right;">1.47E-06</td>
+<td style="text-align: right;">6915</td>
+<td style="text-align: right;">2.56E-06</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><em>signal_write</em></td>
+<td style="text-align: right;">106</td>
+<td style="text-align: right;">5.89E-07</td>
+<td style="text-align: right;">2737</td>
+<td style="text-align: right;">1.08E-06</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><em>systick</em></td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;">5.66667E-07</td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;">1.60E-06</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="tab:rtic_worst_latency">
+<table>
+<caption>End-to-end latency measurements for dispatch and interrupt
+overhead.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><strong>Event</strong></th>
+<th style="text-align: right;"><strong>WCET (cycles)</strong></th>
+<th style="text-align: right;"><strong>WCET (s)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><em>RTIC context_switch (signal)</em></td>
+<td style="text-align: right;">437</td>
+<td style="text-align: right;">2.42778E-06</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><em>RTIC context_switch (spawn)</em></td>
+<td style="text-align: right;">105</td>
+<td style="text-align: right;">5.83333E-07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><em>RTIC interrupt_entry</em></td>
+<td style="text-align: right;">48</td>
+<td style="text-align: right;">2.66667E-07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><em>Ada Interrupt_Handling</em></td>
+<td style="text-align: right;">87</td>
+<td style="text-align: right;">4.83333E-07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><em>Ada Sporadic_Switch</em></td>
+<td style="text-align: right;">641</td>
+<td style="text-align: right;">3.56111E-06</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="interrupt-and-dispatch-latency">Interrupt and Dispatch
+Latency</h3>
+<p>End‑to‑end latency tests (Table <a href="#tab:rtic_worst_latency"
+data-reference-type="ref" data-reference="tab:rtic_worst_latency">2</a>)
+reveal a significant performance advantage for the RTIC dispatcher. The
+<em>RTIC interrupt_entry</em> overhead (266 ns) is approximately 45%
+lower than the equivalent <em>Ada Interrupt_Handling</em> trap (483 ns).
+This validates the architectural benefit of RTIC’s hardware-accelerated
+model. However, the performance gap narrows significantly when
+evaluating sporadic context switch.<br />
+ <br />
+</p>
+<h3 id="ada-ravenscar-runtime-overheads"> Ada Ravenscar Runtime
+Overheads</h3>
+<p>Table <a href="#tab:ada_runtime_wcet" data-reference-type="ref"
+data-reference="tab:ada_runtime_wcet">3</a> lists the overheads for the
+Ada Ravenscar runtime. ISR overhead recorded in this isolated manner is
+more equivalent to RTIC’s interrupt entry latency. The WCET of the
+context switch traps are also less than those reported for RTIC. All
+recorded values are a significant figure lower than those reported from
+Hu and Gobbo <span class="citation" data-cites="giovanni-report">(Hu and
+Gobbo 2020)</span>, most likely due to the use of DWT with GDB
+scripting, reducing measurement overhead.</p>
+<div id="tab:ada_runtime_wcet">
+<table>
+<caption>Ada Ravenscar runtime overhead WCETs measured via DWT-based GDB
+profiling.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><strong>Routine / Trap</strong></th>
+<th style="text-align: right;"><strong>WCET (cycles)</strong></th>
+<th style="text-align: right;"><strong>WCET (s)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><em>context_switch_trigger</em></td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">2.78E-08</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><em>pend_sv_handler</em></td>
+<td style="text-align: right;">76</td>
+<td style="text-align: right;">4.22E-07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><em>sys_tick_handler</em></td>
+<td style="text-align: right;">48</td>
+<td style="text-align: right;">2.67E-07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><em>ISR_Isolated</em></td>
+<td style="text-align: right;">43</td>
+<td style="text-align: right;">2.39E-07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><em>Total Context Switch
+Overhead</em></td>
+<td style="text-align: right;">81</td>
+<td style="text-align: right;">4.50E-07</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="tab:hierarchical_ops_wcet">
+<table>
+<caption>Hierarchical operation structure for WCET attribution.
+Indentation indicates sub-operations.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><strong>Operation</strong></th>
+<th style="text-align: left;"><strong>Ada WCET (s)</strong></th>
+<th style="text-align: left;"><strong>RTIC WCET (s)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>Regular Producer</strong></td>
+<td style="text-align: left;">1.76E-02</td>
+<td style="text-align: left;">2.71E-02</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Overrun detection</td>
+<td style="text-align: left;">1.56E-05</td>
+<td style="text-align: left;">3.11E-07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">RP Operation</td>
+<td style="text-align: left;">1.76E-02</td>
+<td style="text-align: left;">2.71E-02</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Whetstone workload</td>
+<td style="text-align: left;">1.75E-02</td>
+<td style="text-align: left;">2.70E-02</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Due activation</td>
+<td style="text-align: left;">2.66E-06</td>
+<td style="text-align: left;">1.89E-07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">OCP Start / try send</td>
+<td style="text-align: left;">5.23E-05</td>
+<td style="text-align: left;">1.77E-06</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Check Due</td>
+<td style="text-align: left;">2.83E-06</td>
+<td style="text-align: left;">1.83E-07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Activation Log signal</td>
+<td style="text-align: left;">5.53E-05</td>
+<td style="text-align: left;">1.18E-06</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Output logging</td>
+<td style="text-align: left;">8.33E-06</td>
+<td style="text-align: left;">6.64E-06</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Delay Until</td>
+<td style="text-align: left;">2.18333E-06</td>
+<td style="text-align: left;">5.56E-08</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>On-Call Producer</strong></td>
+<td style="text-align: left;">6.47E-03</td>
+<td style="text-align: left;">9.97E-03</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">RB Extract / recv</td>
+<td style="text-align: left;">2.69E-06</td>
+<td style="text-align: left;">3.11E-06</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Overrun detection</td>
+<td style="text-align: left;">1.49E-05</td>
+<td style="text-align: left;">3.11E-07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">OC Operation</td>
+<td style="text-align: left;">6.45E-03</td>
+<td style="text-align: left;">9.97E-03</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Whetstone workload</td>
+<td style="text-align: left;">6.44E-03</td>
+<td style="text-align: left;">9.94E-03</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Output logging</td>
+<td style="text-align: left;">8.33E-06</td>
+<td style="text-align: left;">6.51E-06</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Activation Log
+Reader</strong></td>
+<td style="text-align: left;">3.30E-03</td>
+<td style="text-align: left;">5.00E-03</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">AL Wait</td>
+<td style="text-align: left;">1.76E-06</td>
+<td style="text-align: left;">7.95E-07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Overrun detection</td>
+<td style="text-align: left;">1.42E-05</td>
+<td style="text-align: left;">3.11E-07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">ALR Operation</td>
+<td style="text-align: left;">3.28E-03</td>
+<td style="text-align: left;">5.00E-03</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Whetstone workload</td>
+<td style="text-align: left;">3.22E-03</td>
+<td style="text-align: left;">4.97E-03</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Activation Log read</td>
+<td style="text-align: left;">4.92E-05</td>
+<td style="text-align: left;">3.67E-07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Output logging</td>
+<td style="text-align: left;">8.33E-06</td>
+<td style="text-align: left;">6.49E-06</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>External Event
+Server</strong></td>
+<td style="text-align: left;">5.58E-05</td>
+<td style="text-align: left;">2.84E-05</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Ext Wait</td>
+<td style="text-align: left;">1.76E-06</td>
+<td style="text-align: left;">7.95E-07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Overrun detection</td>
+<td style="text-align: left;">1.49E-05</td>
+<td style="text-align: left;">3.11E-07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">EES Operation</td>
+<td style="text-align: left;">3.91E-05</td>
+<td style="text-align: left;">2.73E-05</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Activation Log Write</td>
+<td style="text-align: left;">3.91E-05</td>
+<td style="text-align: left;">4.22E-07</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Table <a href="#tab:hierarchical_ops_wcet" data-reference-type="ref"
+data-reference="tab:hierarchical_ops_wcet">4</a> breaks down the WCET
+attribution for the hierarchical operations used in the experiments.</p>
+<h3 id="synchronisation-overhead-comparison">Synchronisation Overhead
+Comparison</h3>
+<p>A comparison of synchronisation primitives demonstrates that RTIC’s
+decoupled architecture achieves performance broadly comparable to Ada’s
+unified model. The RTIC asynchronous channel operation
+(<em>channel_recv</em>, 3.11 <span
+class="math inline"><em>μ</em></span>s) exhibits only a marginal
+disadvantage (<span class="math inline"> &lt; 0.5 <em>μ</em></span>s)
+compared to Ada’s Protected Object operation (<em>RB Extract</em>,
+2.69 <span class="math inline"><em>μ</em></span>s).</p>
+<h3 id="baseline-mast-analysis">Baseline MAST Analysis</h3>
+<p>Table <a href="#tab:comparison_baseline" data-reference-type="ref"
+data-reference="tab:comparison_baseline">5</a> compares the baseline
+Rate Monotonic (RM) analysis between Ada and RTIC. Results show shorter
+worst‑case blocking times for all transactions in RTIC, accompanied by
+increased jitter and response times. The RTIC implementation
+demonstrates significantly lower worst blocking times (<span
+class="math inline">2.01<em>μ</em><em>s</em></span>) compared to Ada
+(<span class="math inline">49.2<em>μ</em><em>s</em></span>). The
+difference in system slack and total utilisation is attributed to the
+implementation of the Whetstone workload.</p>
+<div id="tab:comparison_baseline">
+<table>
+<caption>Comparative MAST analysis: Ada vs. RTIC baselines.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><strong>Transaction</strong></th>
+<th colspan="2" style="text-align: center;"><strong><span
+class="math inline"><em>R</em><sub><em>m</em><em>a</em><em>x</em></sub></span></strong></th>
+<th colspan="2" style="text-align: center;"><strong>Slack
+(%)</strong></th>
+<th style="text-align: right;"><strong>Blocking Time</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><span>2-3</span> (lr)<span>4-5</span>
+(lr)<span>6-6</span></td>
+<td style="text-align: right;"><strong>Ada</strong></td>
+<td style="text-align: right;"><strong>RTIC</strong></td>
+<td style="text-align: right;"><strong>Ada</strong></td>
+<td style="text-align: right;"><strong>RTIC</strong></td>
+<td style="text-align: right;"><strong>Ada / RTIC</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">rp_transaction</td>
+<td style="text-align: right;">0.01875</td>
+<td style="text-align: right;">0.02815</td>
+<td style="text-align: right;">2727.3</td>
+<td style="text-align: right;">1739.8</td>
+<td style="text-align: right;">4.92e-05 / 2.01e-06</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ocp_transaction</td>
+<td style="text-align: right;">0.02422</td>
+<td style="text-align: right;">0.03714</td>
+<td style="text-align: right;">11979.3</td>
+<td style="text-align: right;">7635.9</td>
+<td style="text-align: right;">4.92e-05 / 4.56e-07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">alr_transaction</td>
+<td style="text-align: right;">0.02747</td>
+<td style="text-align: right;">0.04214</td>
+<td style="text-align: right;">29342.2</td>
+<td style="text-align: right;">19143.8</td>
+<td style="text-align: right;">0 / 0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ees_transaction</td>
+<td style="text-align: right;">0.00011</td>
+<td style="text-align: right;">0.00104</td>
+<td style="text-align: right;"><span
+class="math inline"> &gt; 10<sup>5</sup></span></td>
+<td style="text-align: right;"><span
+class="math inline"> &gt; 10<sup>5</sup></span></td>
+<td style="text-align: right;">4.92e-05 / 2.01e-06</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>System Metrics</strong></td>
+<td colspan="2" style="text-align: center;"><strong>Ada</strong></td>
+<td colspan="2" style="text-align: center;"><strong>RTIC</strong></td>
+<td style="text-align: right;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">System Slack</td>
+<td colspan="2" style="text-align: center;">2711.3%</td>
+<td colspan="2" style="text-align: center;">1737.9%</td>
+<td style="text-align: right;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Total Utilisation</td>
+<td colspan="2" style="text-align: center;">2.12%</td>
+<td colspan="2" style="text-align: center;">3.58%</td>
+<td style="text-align: right;"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Therefore, the baseline was recomputed with a constant workload WCET
+across Ada and RTIC to focus on differences in modelling and runtime
+overheads (Table <a href="#tab:comparison_baseline_modified"
+data-reference-type="ref"
+data-reference="tab:comparison_baseline_modified">6</a>).</p>
+<div id="tab:comparison_baseline_modified">
+<table>
+<caption>Comparative MAST analysis: Ada vs. RTIC baselines (consistent
+workload WCET).</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><strong>Transaction</strong></th>
+<th colspan="2" style="text-align: center;"><strong><span
+class="math inline"><em>R</em><sub><em>m</em><em>a</em><em>x</em></sub></span></strong></th>
+<th colspan="2" style="text-align: center;"><strong>Slack
+(%)</strong></th>
+<th colspan="2" style="text-align: center;"><strong>Blocking
+Time</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><span>2-3</span> (lr)<span>4-5</span>
+(lr)<span>6-7</span></td>
+<td style="text-align: center;"><strong>Ada</strong></td>
+<td style="text-align: center;"><strong>RTIC</strong></td>
+<td style="text-align: center;"><strong>Ada</strong></td>
+<td style="text-align: center;"><strong>RTIC</strong></td>
+<td style="text-align: center;"><strong>Ada</strong></td>
+<td style="text-align: center;"><strong>RTIC</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">rp_transaction</td>
+<td style="text-align: center;">0.01875</td>
+<td style="text-align: center;">0.01861</td>
+<td style="text-align: center;">2727.3</td>
+<td style="text-align: center;">2738.3</td>
+<td style="text-align: center;">4.92e-05</td>
+<td style="text-align: center;">2.01e-06</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ocp_transaction</td>
+<td style="text-align: center;">0.02422</td>
+<td style="text-align: center;">0.02409</td>
+<td style="text-align: center;">11979.3</td>
+<td style="text-align: center;">11980.1</td>
+<td style="text-align: center;">4.92e-05</td>
+<td style="text-align: center;">4.56e-07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">alr_transaction</td>
+<td style="text-align: center;">0.02747</td>
+<td style="text-align: center;">0.02733</td>
+<td style="text-align: center;">29342.2</td>
+<td style="text-align: center;">29975.4</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ees_transaction</td>
+<td style="text-align: center;">0.00011</td>
+<td style="text-align: center;">0.00104</td>
+<td style="text-align: center;"><span
+class="math inline"> &gt; 10<sup>5</sup></span></td>
+<td style="text-align: center;"><span
+class="math inline"> &gt; 10<sup>5</sup></span></td>
+<td style="text-align: center;">4.92e-05</td>
+<td style="text-align: center;">2.01e-06</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>System Metrics</strong></td>
+<td colspan="2" style="text-align: center;"><strong>Ada</strong></td>
+<td colspan="2" style="text-align: center;"><strong>RTIC</strong></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">System Slack</td>
+<td colspan="2" style="text-align: center;">2711.3%</td>
+<td colspan="2" style="text-align: center;">2733.6%</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Total Utilisation</td>
+<td colspan="2" style="text-align: center;">2.12%</td>
+<td colspan="2" style="text-align: center;">2.46%</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>With the normalised workload, RTIC demonstrates a minimally superior
+response times for periodic tasks and a persistent advantage in blocking
+duration. RTIC’s lock free synchronisation primitives, in particular
+signal and channel have less execution time modelled as shared
+resources, significantly lower blocking times.</p>
+<h2 id="experiment-i-workload-scaling-and-response-time">Experiment I:
+Workload Scaling and Response Time</h2>
+<p>Figure <a href="#fig:response_time_comparison"
+data-reference-type="ref"
+data-reference="fig:response_time_comparison">3</a> illustrates the
+scaling of maximum response times (<span
+class="math inline"><em>R</em><sub><em>m</em><em>a</em><em>x</em></sub></span>)
+as the computational workload increases. <span
+class="math inline"><em>R</em><sub><em>m</em><em>a</em><em>x</em></sub></span>
+grows linearly with the workload factor <span
+class="math inline"><em>k</em></span>. However, the absolute difference
+in <span
+class="math inline"><em>R</em><sub><em>m</em><em>a</em><em>x</em></sub></span>
+between the two models grows with <span
+class="math inline"><em>k</em></span>. In the offset-based model, the
+largest discrepancy recorded was <span class="math inline">0.187</span>
+at a workload factor of <span
+class="math inline"><em>k</em> = 29</span>. For the independent models,
+<span class="math inline">0.330</span> at <span
+class="math inline"><em>k</em> = 30</span>. The independent models
+identify the system’s schedulability threshold at <span
+class="math inline"><em>k</em> = 28</span>, where the system slack is
+reduced to 1.56% before eventually failing feasibility tests at higher
+workload factors.</p>
+<figure id="fig:response_time_comparison">
+<figure id="fig:resp_independent">
+<img src="images/rp_max_response_time_comparison_independent.png" />
+<figcaption>Independent model comparison.</figcaption>
+</figure>
+<figure id="fig:resp_offset">
+<img src="images/rp_max_response_time_comparison_offset.png" />
+<figcaption>Offset model comparison.</figcaption>
+</figure>
+<figcaption>Experiment I - Workload Scaling, maximum response time
+comparison for Independent vs. Offset transactions.</figcaption>
+</figure>
+<figure id="fig:slack_comparison">
+<img src="images/system_slack_comparison_independent.png" />
+<figcaption>Experiment I - workload scaling v System slack (%)
+(Ind.).</figcaption>
+</figure>
+<p>As the workloads are scaled, increasing the utilisation of the CPU
+and decreasing the system slack (dominated by the regular producer
+transaction), the difference in slack between RTIC and Ada tends to
+zero. This suggests that with deadlines and workloads within the ms
+range, differences between the frameworks are insignificant for
+schedulability.</p>
+<h3
+id="experiment-ii-maximum-utilisation-and-scaling-with-classic-rate-monotonic-analysis">Experiment
+II: Maximum Utilisation and Scaling with Classic Rate Monotonic
+Analysis</h3>
+<p>Following the methodology of Hu and Gobbo <span class="citation"
+data-cites="giovanni-report">(Hu and Gobbo 2020)</span>, the maximum
+sustainable utilisation was discovered by iteratively applying scaling
+factors to the Whetstone workloads of the periodic transactions. The
+process involves identifying the transaction with the minimum system
+slack, scaling its workload by that factor, and repeating the analysis
+for the remaining tasks until the system slack approaches 0%.<br />
+ <br />
+Table  <a href="#tab:max_utilisation_final" data-reference-type="ref"
+data-reference="tab:max_utilisation_final">7</a> presents the results of
+this saturation test. Both frameworks successfully reach the theoretical
+limits of schedulability for this task set, achieving approximately 64%
+total CPU utilisation before failing feasibility tests.</p>
+<div id="tab:max_utilisation_final">
+<table>
+<caption>Maximum achievable utilisation with RM analysis: Ada Ravenscar
+vs. RTIC.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><strong>Transaction</strong></th>
+<th colspan="2" style="text-align: center;"><strong><span
+class="math inline"><em>R</em><sub><em>m</em><em>a</em><em>x</em></sub></span></strong></th>
+<th colspan="2" style="text-align: center;"><strong>Slack
+(%)</strong></th>
+<th colspan="2" style="text-align: center;"><strong>Blocking
+Time</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><span>2-3</span> (lr)<span>4-5</span>
+(lr)<span>6-7</span></td>
+<td style="text-align: center;"><strong>Ada</strong></td>
+<td style="text-align: center;"><strong>RTIC</strong></td>
+<td style="text-align: center;"><strong>Ada</strong></td>
+<td style="text-align: center;"><strong>RTIC</strong></td>
+<td style="text-align: center;"><strong>Ada</strong></td>
+<td style="text-align: center;"><strong>RTIC</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">rp_transaction</td>
+<td style="text-align: center;">0.47387</td>
+<td style="text-align: center;">0.46182</td>
+<td style="text-align: center;">0.00</td>
+<td style="text-align: center;">0.78</td>
+<td style="text-align: center;">4.92e-05</td>
+<td style="text-align: center;">2.01e-06</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ocp_transaction</td>
+<td style="text-align: center;">0.79499</td>
+<td style="text-align: center;">0.79011</td>
+<td style="text-align: center;">0.00</td>
+<td style="text-align: center;">1.17</td>
+<td style="text-align: center;">4.92e-05</td>
+<td style="text-align: center;">4.56e-07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">alr_transaction</td>
+<td style="text-align: center;">0.99792</td>
+<td style="text-align: center;">0.99468</td>
+<td style="text-align: center;">0.39</td>
+<td style="text-align: center;">1.95</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ees_transaction</td>
+<td style="text-align: center;">0.00011</td>
+<td style="text-align: center;">0.00104</td>
+<td style="text-align: center;">1928.1</td>
+<td style="text-align: center;">14137.1</td>
+<td style="text-align: center;">4.92e-05</td>
+<td style="text-align: center;">2.01e-06</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>System Metrics</strong></td>
+<td colspan="2" style="text-align: center;"><strong>Ada</strong></td>
+<td colspan="2" style="text-align: center;"><strong>RTIC</strong></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">System Slack</td>
+<td colspan="2" style="text-align: center;">0.00%</td>
+<td colspan="2" style="text-align: center;">0.39%</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Total Utilisation</td>
+<td colspan="2" style="text-align: center;">64.79%</td>
+<td colspan="2" style="text-align: center;">64.01%</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>To reach the same utilisation level, RTIC requires lower scaling
+factors (e.g., <span class="math inline"><em>k</em> = 17</span> for
+<em>rp</em>) than Ada (<span
+class="math inline"><em>k</em> = 27</span>). This is due to the higher
+base WCET of RTIC’s software-based floating-point library. However, the
+identical system-wide saturation point (<span
+class="math inline"> ≈ 64%</span>) confirms that RTIC’s asynchronous
+runtime does not introduce non-linear scaling overheads.<br />
+ <br />
+As previously observed, there is a significant divergence in worst-case
+blocking times, Ada’s blocking term (<span
+class="math inline">49.2 <em>μ</em></span>s) is an order of magnitude
+higher than RTIC’s (<span
+class="math inline">2.01 <em>μ</em></span>s).</p>
+<h2 id="experiment-iii-n-tasks-vs-release-jitter">Experiment III: <span
+class="math inline"><em>N</em></span> Tasks vs Release Jitter</h2>
+<p>Figure <a href="#fig:jitter_scaling" data-reference-type="ref"
+data-reference="fig:jitter_scaling">5</a> demonstrates that the
+resulting release jitter in RTIC remains significantly lower than that
+of Ada Ravenscar, even when the system is scaled to 100 concurrent
+tasks, despite the (O(N)) complexity of its timer queue.<br />
+ <br />
+The Ada Ravenscar implementation encountered memory exhaustion after the
+introduction of 25 additional tasks. This failure occurs because an
+independent memory stack is allocated for every individual task, which
+defaults to 20KB. Consequently, the cumulative memory toll rapidly
+exhausts the microcontroller’s available RAM.<br />
+ <br />
+Conversely, RTIC reduces per-task memory overhead through its SRP-based
+shared-stack architecture <span class="citation"
+data-cites="rtic-book">(RTIC Community 2024)</span>. This makes
+possibile the generation of hundreds of tasks without exhausting system
+memory. At high task levels, priority levels must be shared due the
+finite number of hardware priority levels granted by the NVIC <span
+class="citation" data-cites="hardware-support">(Lindgren, Dzialo, and
+Lunnikivi 2023)</span>. The results suggest that for memory-constrained
+systems requiring high task counts, RTIC provides superior
+scalability.</p>
+<figure id="fig:jitter_scaling">
+<img src="images/linear_scaling_of_release_jitter_rtic.png" />
+<figcaption>Experiment III - Release Jitter of a periodic task vs. Task
+Count.</figcaption>
+</figure>
+<h1 id="conclusion">Conclusion</h1>
+<p>RTIC offers low-overhead execution, but its use of global interrupt
+masking complicates formal schedulability analysis. RTIC’s ecosystem is
+still immature, lacking comprehensive modelling and benchmarking tools,
+a verified runtime with proven execution-time bounds, and thorough
+documentation. There is also no established best practice for hard
+real-time systems in RTIC; developers follow differing conventions, such
+as using async features for software-based preemption or relying on
+spawn-centric task invocation. Recent efforts have concentrated on
+developing a useful ecosystem of tools, for example the KLEE-based test
+bench for WCET analysis in RTIC <span class="citation"
+data-cites="lindner-wcet">(Lindner et al. 2018)</span>, and RTIC Scope,
+which provides real-time tracing capabilities <span class="citation"
+data-cites="sonesten-thesis">(Sonesten 2022)</span>. Nonetheless, both
+of these tools are still immature, no longer maintained, and were
+incompatible with the latest RTIC version used in this project. In
+addition, the functionality that RTIC can offer is presently constrained
+by Rust’s macro expansion mechanisms <span class="citation"
+data-cites="madaoui-modularity">(Madaoui et al. 2024)</span>. The
+macro-based design enforces a monolithic codebase that limits
+modularity, the integration of extensions (e.g., execution timers), and
+further introduces debugging complexity that heavily hinders community
+contributions and maintainability <span class="citation"
+data-cites="rtic-thesis madaoui-modularity">(Tjader 2021; Madaoui et al.
+2024)</span>. The lock-free semantics of channels and signals are
+attractive to developers, but make system modelling more difficult by
+operating outside the conventional shared-resource model. Ada Ravenscar
+continues to be a stable, well-documented, and highly capable framework
+for building hard real-time systems, and delivers performance
+appropriate for embedded applications.</p>
+<h1 class="unnumbered" id="acknowledgements">Acknowledgements</h1>
+<p>The author acknowledges the assistance of agentic AI tools in the
+development of the scripts used in this study. Specifically, AI
+assistance was utilised to quickly iterate the GDB scripts for DWT-based
+execution-time profiling and to develop the Python-based automation
+pipeline for the MAST experiments, including scripts for populating MAST
+model templates with WCET values, extracting results from output files,
+and generating data visualisations using Matplotlib.</p>
+<div id="refs" class="references csl-bib-body hanging-indent"
+role="list">
+<div id="ref-arm-dwt-count" class="csl-entry" role="listitem">
+Arm Limited. 2026. <span>“Using DWT and Other Methods to Count Executed
+Instructions on Cortex-m.”</span> 2026. <a
+href="https://developer.arm.com/documentation/ka001499/latest/">https://developer.arm.com/documentation/ka001499/latest/</a>.
+</div>
+<div id="ref-baker-srp" class="csl-entry" role="listitem">
+Baker, T. P. 1991. <span>“Stack-Based Scheduling of Realtime
+Processes.”</span> <em>Real-Time Systems</em> 3 (1): 67–99.
+</div>
+<div id="ref-ravenscar-guide" class="csl-entry" role="listitem">
+Burns, A., B. Dobbing, and T. Vardanega. 2017. <span>“Guide for the Use
+of the Ada Ravenscar Profile in High Integrity Systems.”</span>
+YCS-2017-348. University of York.
+</div>
+<div id="ref-ermedahl-engblom" class="csl-entry" role="listitem">
+Engblom, J., A. Ermedahl, M. Sjödin, J. Gustafsson, and H. Hansson.
+2001. <span>“Execution-Time Analysis for Embedded Real-Time
+Systems.”</span> <em>International Journal on Software Tools for
+Technology Transfer (STTT)</em>.
+</div>
+<div id="ref-rtfm-step1" class="csl-entry" role="listitem">
+Eriksson, J., F. Häggström, S. Aittamaa, A. Kruglyak, and P. Lindgren.
+2013. <span>“Real-Time for the Masses, Step 1: Programming API and
+Static Priority SRP Kernel Primitives.”</span> In <em>8th IEEE
+International Symposium on Industrial Embedded Systems (SIES)</em>,
+110–13.
+</div>
+<div id="ref-mast-tool" class="csl-entry" role="listitem">
+Harbour, M. González, J. J. Gutiérrez, J. C. Palencia, and J. M. Drake.
+2001. <span>“MAST: Modeling and Analysis Suite for Real-Time
+Applications.”</span> In <em>Proceedings of the 13th Euromicro
+Conference on Real-Time Systems</em>, 125–34. Delft, The Netherlands.
+</div>
+<div id="ref-giovanni-report" class="csl-entry" role="listitem">
+Hu, G. J., and A. Gobbo. 2020. <span>“MAST Analysis of a Ravenscar
+Precedence-Constrained Application with FPS and EDF Scheduling.”</span>
+University of Padua, Italy.
+</div>
+<div id="ref-hardware-support" class="csl-entry" role="listitem">
+Lindgren, P., P. Dzialo, and H. Lunnikivi. 2023. <span>“Hardware Support
+for Static-Priority Stack Resource Policy Based Scheduling.”</span> In
+<em>2023 IEEE 32nd International Symposium on Industrial Electronics
+(ISIE)</em>, 1–8. <a
+href="https://doi.org/10.1109/ISIE54958.2023.10228088">https://doi.org/10.1109/ISIE54958.2023.10228088</a>.
+</div>
+<div id="ref-lindner-wcet" class="csl-entry" role="listitem">
+Lindner, M., J. Aparicio, H. Tjader, P. Lindgren, and J. Eriksson. 2018.
+<span>“Hardware-in-the-Loop Based WCET Analysis with KLEE.”</span> In
+<em>Proceedings of the IEEE Industrial Cyber-Physical Systems
+(ICPS)</em>.
+</div>
+<div id="ref-madaoui-modularity" class="csl-entry" role="listitem">
+Madaoui, Z., H. Lunnikivi, P. Dzialo, and P. Lindgren. 2024.
+<span>“Towards Modularity of the Rust RTIC Real-Time Scheduling
+Framework.”</span> In <em>2024 IEEE Nordic Circuits and Systems
+Conference (NorCAS)</em>. <a
+href="https://doi.org/10.1109/NorCAS64408.2024.10752441">https://doi.org/10.1109/NorCAS64408.2024.10752441</a>.
+</div>
+<div id="ref-puschner-burns-review" class="csl-entry" role="listitem">
+Puschner, P., and A. Burns. 2000. <span>“A Review of Worst-Case
+Execution-Time Analysis.”</span> <em>Real-Time Systems</em> 18: 115–28.
+</div>
+<div id="ref-rtic-book" class="csl-entry" role="listitem">
+RTIC Community. 2024. <span>“Real-Time Interrupt-Driven Concurrency
+V2.”</span> 2024. <a
+href="https://rtic.rs/2/book/en/">https://rtic.rs/2/book/en/</a>.
+</div>
+<div id="ref-rtic-source" class="csl-entry" role="listitem">
+———. n.d. <span>“RTIC Source Code Repository.”</span> GitHub. <a
+href="https://github.com/rtic-rs/rtic">https://github.com/rtic-rs/rtic</a>.
+</div>
+<div id="ref-sonesten-thesis" class="csl-entry" role="listitem">
+Sonesten, V. V. 2022. <span>“RTIC Scope: Real-Time Tracing Support for
+the RTIC RTOS Framework.”</span> Master’s thesis, Luleå, Sweden: Luleå
+University of Technology.
+</div>
+<div id="ref-rtic-thesis" class="csl-entry" role="listitem">
+Tjader, H. 2021. <span>“RTIC: A Zero-Cost Abstraction for Memory Safe
+Concurrency.”</span> Master’s thesis, Luleå University of Technology,
+Department of Computer Science, Electrical; Space Engineering.
+</div>
+<div id="ref-vardanega-semantics" class="csl-entry" role="listitem">
+Vardanega, T., J. Zamorano, and J. A. de la Puente. 2005. <span>“On the
+Dynamic Semantics and the Timing Behaviour of Ravenscar Kernels.”</span>
+<em>Real-Time Systems</em> 29 (1): 59–89.
+</div>
+<div id="ref-wilhelm-wcet" class="csl-entry" role="listitem">
+Wilhelm, R. et al. 2008. <span>“The Worst-Case Execution-Time Problem,
+Overview of Methods and Survey of Tools.”</span> <em>ACM Transactions on
+Embedded Computing Systems (TECS)</em> 7 (3): 1–53.
+</div>
+<div id="ref-yiu2011definitive" class="csl-entry" role="listitem">
+Yiu, J. 2011. <em>The Definitive Guide to the ARM Cortex-M3</em>.
+Newnes.
+</div>
+</div>
+</body>
+</html>
